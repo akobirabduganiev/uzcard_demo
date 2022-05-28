@@ -17,6 +17,8 @@ public class CardEntity extends BaseEntity {
     private LocalDate expiredDate = LocalDate.now().plusYears(5);
     @Column
     private Long balance;
+    @Column
+    private String phone;
 
     @Column
     private String clientUuid;

@@ -36,7 +36,7 @@ public class ClientService {
 
         var clientDTO = new ClientDTO();
         clientDTO.setCreatedDate(entity.getCreatedDate());
-        clientDTO.setUuid(entity.getUuid());
+        clientDTO.setUuid(entity.getId());
 
         return clientDTO;
     }
@@ -58,7 +58,18 @@ public class ClientService {
 
         return "updated successfully";
     }
+    public ClientDTO updateStatus(ChangeClientDetailDTO dto, String clientId) {
+        ClientEntity entity = getById(clientId);
 
+        if (dto.getStatus().equals(entity.getStatus())) {
+            return toDTO(entity);
+        }
+
+        entity.setStatus(dto.getStatus());
+
+        clientRepository.save(entity);
+        return toDTO(entity);
+    }
     public String updatePhone(ChangeClientPhoneDTO dto) {
         ClientEntity entity = clientRepository.findById(dto.getClientId()).orElseThrow(
                 () -> new ItemNotFoundException("client not found"));
@@ -91,10 +102,16 @@ public class ClientService {
         return toDTO(entity);
     }
 
+    public ClientEntity getById(String clientId) {
+        return clientRepository
+                .findById(clientId)
+                .orElseThrow(() -> new ItemNotFoundException("Not found!"));
+    }
+
     public ClientDTO toDTO(ClientEntity entity) {
         var dto = new ClientDTO();
 
-        dto.setUuid(entity.getUuid());
+        dto.setUuid(entity.getId());
         dto.setName(entity.getName());
         dto.setSurname(entity.getSurname());
         dto.setPhone(entity.getPhone());
