@@ -1,33 +1,31 @@
 package com.company.entity;
 
-import com.company.enums.GeneralStatus;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.GenericGenerator;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.MappedSuperclass;
 import java.time.LocalDateTime;
 
 @MappedSuperclass
 @Getter
 @Setter
 public class BaseEntity {
+
     @Id
-    @GeneratedValue(generator = "system-uuid")
-    @GenericGenerator(name = "system-uuid", strategy = "uuid")
-    private String id;
+    @GeneratedValue(generator="system-uuid")
+    @GenericGenerator(name="system-uuid", strategy = "uuid")
+    protected String id;
 
-    @Column
-    @CreatedDate
-    private LocalDateTime createdDate = LocalDateTime.now();
+    @Column(name = "created_date")
+    @CreationTimestamp
+    protected LocalDateTime createdDate;
 
-    @Column
-    @LastModifiedDate
-    private LocalDateTime lastModifiedDate;
+    @Column(name = "updated_date")
+    protected LocalDateTime updatedDate;
 
-    @Column
-    @Enumerated(EnumType.STRING)
-    private GeneralStatus status;
 }

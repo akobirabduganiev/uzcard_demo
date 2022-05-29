@@ -1,5 +1,6 @@
 package com.company.entity;
 
+import com.company.enums.EntityStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,24 +8,30 @@ import javax.persistence.*;
 import java.time.LocalDate;
 
 @Entity
+@Table(name = "card")
 @Getter
 @Setter
-@Table(name = "card")
 public class CardEntity extends BaseEntity {
-    @Column
-    private String number;
-    @Column
-    private LocalDate expiredDate = LocalDate.now().plusYears(5);
-    @Column
-    private Long balance;
-    @Column
-    private String phone;
+
+    @Column(name = "card_number", nullable = false, unique = true)
+    private String cardNumber;
+
+    @Column(name = "expired_date")
+    private LocalDate expiredDate;
 
     @Column
-    private String clientUuid;
-    @ManyToOne
-    @JoinColumn(name = "client_uuid")
+    private Long balance = 0L;
+
+    @Column(name = "client_id")
+    private String clientId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_id",insertable = false,updatable = false)
     private ClientEntity client;
 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private EntityStatus status;
 
+    @Column(nullable = false)
+    private Boolean visible = true;
 }

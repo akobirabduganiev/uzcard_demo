@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
-import springfox.documentation.service.Contact;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
@@ -31,18 +30,14 @@ public class SwaggerConfig {
                 .apis(RequestHandlerSelectors.basePackage("com.company"))
                 .build()
                 .apiInfo(apiDetails());
-
     }
 
     private ApiInfo apiDetails() {
-        return new ApiInfo(
-                "UZCARD DEMO API",
-                "API docs for UZCARD DEMO",
+        return new ApiInfo("Uzcard",
+                "Api documentation for uzcard project.",
                 "1.0",
-                "Searching",
-                new Contact("Akobir Abduganiev",
-                        "t.me/akobir_abduganiev",
-                        "akobir.abduganiev@ya.ru"),
+                "https://t.me/Javlondev",
+                new springfox.documentation.service.Contact("", "", ""),
                 "",
                 "",
                 Collections.emptyList()

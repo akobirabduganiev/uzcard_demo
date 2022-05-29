@@ -1,65 +1,94 @@
 package com.company.service;
 
-import com.company.dto.CardDTO;
-import com.company.dto.CardFilterDTO;
-import com.company.dto.ChangeCardStatusDTO;
-import com.company.dto.ClientDTO;
+import com.company.dto.*;
 import com.company.entity.CardEntity;
-import com.company.enums.GeneralStatus;
+import com.company.enums.EntityStatus;
+import com.company.exceptions.AppBadRequestException;
+import com.company.exceptions.ItemAlreadyExistsException;
 import com.company.exceptions.ItemNotFoundException;
 import com.company.repository.CardRepository;
+import com.company.repository.custom.CardCustomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class CardService {
+
     private final CardRepository cardRepository;
-    private final ClientService clientService;
+    private final CardCustomRepository cardCustomRepository;
 
-    public CardDTO create(CardDTO dto, String profileName) {
-        clientService.getById(dto.getId(), profileName);
+    @Value("${message.card.type}")
+    private String cardType;
 
-        var cardNum = getRandomNumberString();
+    @Value("${message.expiration.year}")
+    private String expirationYear;
 
-        var optional = cardRepository.findByNumber(cardNum);
 
-        while (optional.isPresent()) {
-            cardNum = getRandomNumberString();
-            optional = cardRepository.findByNumber(cardNum);
+    public CardDTO create() {
+        String cardNumber = cardType + new Random().nextLong(1000_0000_0000L, 9999_9999_9999L);
+        if (Optional.ofNullable(getByCardNumber(cardNumber)).isPresent()) {
+            log.warn("Card number already exists {}", cardNumber);
+            throw new ItemAlreadyExistsException("This card number already exists!");
         }
 
-        var entity = new CardEntity();
-
-        entity.setClientUuid(dto.getClientUuid());
-        entity.setNumber(dto.getNumber());
-        entity.setStatus(GeneralStatus.ACTIVE);
+        CardEntity entity = new CardEntity();
+        entity.setCardNumber(cardNumber);
+        entity.setStatus(EntityStatus.INACTIVE);
 
         cardRepository.save(entity);
-
-        dto.setCreatedDate(entity.getCreatedDate());
-        dto.setId(entity.getId());
-        dto.setNumber(entity.getNumber());
-
-        return dto;
+        return toDTO(entity);
     }
 
-    public String changeStatus(ChangeCardStatusDTO dto) {
-        cardRepository.findById(dto.getUuid())
-                .orElseThrow(() -> new ItemNotFoundException("card not found"));
+    public CardDTO updateStatus(CardStatusDTO dto, String profileName) {
+        CardEntity entity = getByCardNumber(dto.getCardNumber());
 
-        cardRepository.changeStatus(dto.getStatus(), dto.getUuid());
-        cardRepository.updateLastModifiedDate(LocalDateTime.now(), dto.getUuid());
+        if (entity.getStatus().equals(dto.getStatus())) {
+            return toDTO(entity);
+        }
 
-        return "card status updated successfully!";
+        if (profileName.equals("profile")) {
+            switch (entity.getStatus()) {
+                case ACTIVE -> entity.setStatus(EntityStatus.BLOCK);
+                case BLOCK -> entity.setStatus(EntityStatus.ACTIVE);
+            }
+            cardRepository.save(entity);
+            return toDTO(entity);
+        }
+
+        entity.setStatus(dto.getStatus());
+        cardRepository.save(entity);
+        return toDTO(entity);
+    }
+
+    public CardDTO assignPhone(CardNumberDTO dto, String clientId) {
+        CardEntity entity = getByCardNumber(dto.getCardNumber());
+
+        entity.setExpiredDate(LocalDate.now().plusYears(Long.parseLong(expirationYear)));
+        entity.setStatus(EntityStatus.ACTIVE);
+        entity.setClientId(clientId);
+
+        cardRepository.save(entity);
+        return toDTO(entity);
+    }
+
+    public List<CardDTO> getCardListByPhone(String phone) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdDate");
+
+        return cardRepository
+                .findAllByPhoneNumber(sort, phone)
+                .stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     public List<CardDTO> getCardListByClientId(String clientId) {
@@ -72,36 +101,22 @@ public class CardService {
                 .toList();
     }
 
-    public List<CardDTO> getCardListByPhone(String phone) {
-        Sort sort = Sort.by(Sort.Direction.DESC, "createdDate");
-
-        return cardRepository
-                .findAllByPhone(sort, phone)
-                .stream()
-                .map(this::toDTO)
-                .toList();
+    public CardDTO get(CardNumberDTO dto) {
+        CardEntity entity = getByCardNumber(dto.getCardNumber());
+        if (Optional.ofNullable(getByCardNumber(dto.getCardNumber())).isPresent()) {
+            return toDTO(entity);
+        }
+        log.warn("Card Not found {}", dto.getCardNumber());
+        throw new ItemNotFoundException("Card Not found!");
     }
 
-    public CardEntity getByCardNumber(String cardNumber) {
-        return cardRepository
-                .findByNumber(cardNumber)
-                .orElse(null);
-    }
-
-    public List<CardDTO> filter(CardFilterDTO dto) {
-        return null;
-    }
-
-    /**
-     * OTHER METHODS
-     **/
-
-    private String getRandomNumberString() {
-
-        var rnd = new Random();
-        int number = rnd.nextInt(99999999);
-
-        return "8600" + String.format("%08d", number);
+    public String getBalance(String cardNumber) {
+        CardEntity entity = getByCardNumber(cardNumber);
+        if (Optional.ofNullable(getByCardNumber(cardNumber)).isPresent()) {
+            return balanceToSum(entity.getBalance());
+        }
+        log.warn("Card Not found {}", cardNumber);
+        throw new ItemNotFoundException("Card Not found!");
     }
 
     public String balanceToSum(Long balance) {
@@ -118,19 +133,42 @@ public class CardService {
         return cash.substring(0, cash.length() - 2) + "," + cash.substring(cash.length() - 2) + " sum";
     }
 
+    public List<CardDTO> filter(CardFilterDTO dto) {
+        return cardCustomRepository
+                .filter(dto)
+                .stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
+    public CardEntity getByCardNumber(String cardNumber) {
+        return cardRepository
+                .findByCardNumberAndVisible(cardNumber, true)
+                .orElse(null);
+    }
+
+    public CardEntity getByCardNumberActive(String cardNumber) {
+        return cardRepository
+                .findByCardNumberAndVisibleAndStatus(cardNumber, true, EntityStatus.ACTIVE)
+                .orElseThrow(() -> {
+                    log.warn("Inactive Card {}", cardNumber);
+                    throw new AppBadRequestException("Inactive Card!");
+                });
+    }
+
     public CardDTO toDTO(CardEntity entity) {
         CardDTO dto = new CardDTO();
         dto.setId(entity.getId());
-        dto.setNumber(entity.getNumber());
+        dto.setCardNumber(entity.getCardNumber());
         dto.setExpiredDate(entity.getExpiredDate());
         dto.setStatus(entity.getStatus());
-        dto.setBalance(balanceToSum(entity.getBalance()));
+        dto.setCash(balanceToSum(entity.getBalance()));
 
         if (Optional.ofNullable(entity.getClient()).isPresent()) {
             ClientDTO clientDTO = new ClientDTO();
             clientDTO.setName(entity.getClient().getName());
             clientDTO.setSurname(entity.getClient().getSurname());
-            dto.setClient(entity.getClient());
+            dto.setClient(clientDTO);
         }
 
         dto.setCreatedDate(entity.getCreatedDate());

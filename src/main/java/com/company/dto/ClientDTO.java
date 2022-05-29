@@ -1,30 +1,36 @@
 package com.company.dto;
 
-import com.company.enums.GeneralStatus;
+import com.company.enums.EntityStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import java.time.LocalDateTime;
+import java.io.Serializable;
 
 @Getter
 @Setter
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ClientDTO {
-    private String uuid;
-    private LocalDateTime createdDate;
-    private LocalDateTime lastModifiedDate;
+@NoArgsConstructor
+public class ClientDTO extends BaseDTO {
 
-    private GeneralStatus status;
-    @NotBlank(message = "name required")
+    @NotBlank(message = "Name required")
     private String name;
-    @NotBlank(message = "surname required")
+
+    @NotBlank(message = "Surname required")
     private String surname;
-    @NotBlank(message = "phone required")
+
+    @NotBlank(message = "Phone required")
     private String phone;
+
+    private EntityStatus status;
+
     private String profileName;
+
+    public ClientDTO(String id,String name, String surname, String phone) {
+        super.id = id;
+        this.name = name;
+        this.surname = surname;
+        this.phone = phone;
+    }
 }

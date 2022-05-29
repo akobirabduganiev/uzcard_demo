@@ -1,24 +1,30 @@
 package com.company.entity;
 
+import com.company.enums.EntityStatus;
 import lombok.Getter;
 import lombok.Setter;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Table;
-import java.time.LocalDateTime;
+import javax.persistence.*;
 
 @Entity
+@Table(name = "client")
 @Getter
 @Setter
-@Table(name = "client")
 public class ClientEntity extends BaseEntity {
-    @Column
+
+    @Column(nullable = false)
     private String name;
-    @Column
+
+    @Column(nullable = false)
     private String surname;
-    @Column
+
+    @Column(nullable = false)
     private String phone;
-    @Column
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private EntityStatus status;
+
+    @Column(name = "profile_name", nullable = false)
     private String profileName;
 }

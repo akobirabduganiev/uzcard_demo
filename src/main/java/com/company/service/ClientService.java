@@ -1,64 +1,65 @@
 package com.company.service;
 
-import com.company.dto.ChangeClientDetailDTO;
-import com.company.dto.ChangeClientPhoneDTO;
+import com.company.dto.ClientBioDTO;
 import com.company.dto.ClientDTO;
-import com.company.dto.UserDetailDTO;
+import com.company.dto.ClientPhoneDTO;
+import com.company.dto.ClientStatusDTO;
 import com.company.entity.ClientEntity;
-import com.company.exceptions.AppBadRequestException;
+import com.company.enums.EntityStatus;
 import com.company.exceptions.ItemNotFoundException;
 import com.company.repository.ClientRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ClientService {
+
     private final ClientRepository clientRepository;
 
-    public ClientDTO create(UserDetailDTO dto, String profileName) {
-        var entity = new ClientEntity();
+
+    public ClientDTO create(ClientDTO dto, String profileName) {
+        ClientEntity entity = new ClientEntity();
         entity.setName(dto.getName());
         entity.setSurname(dto.getSurname());
         entity.setPhone(dto.getPhone());
+        entity.setStatus(EntityStatus.ACTIVE);
         entity.setProfileName(profileName);
-        entity.setStatus(dto.getStatus());
 
         clientRepository.save(entity);
-
-        var clientDTO = new ClientDTO();
-        clientDTO.setCreatedDate(entity.getCreatedDate());
-        clientDTO.setUuid(entity.getId());
-
-        return clientDTO;
+        return toDTO(entity);
     }
 
-    public String update(ChangeClientDetailDTO dto) {
-
-        var entity = clientRepository.findById(dto.getUuid())
-                .orElseThrow(() -> new ItemNotFoundException(""));
-
-        if (dto.getName() != null)
-            entity.setName(dto.getName());
-        if (dto.getSurname() != null)
-            entity.setSurname(dto.getSurname());
-        if (dto.getStatus() != null)
-            entity.setStatus(dto.getStatus());
-        entity.setLastModifiedDate(LocalDateTime.now());
+    public ClientDTO updateBio(ClientBioDTO dto, String clientId) {
+        ClientEntity entity = getById(clientId);
+        entity.setName(dto.getName());
+        entity.setSurname(dto.getSurname());
+        entity.setUpdatedDate(LocalDateTime.now());
 
         clientRepository.save(entity);
-
-        return "updated successfully";
+        return toDTO(entity);
     }
-    public ClientDTO updateStatus(ChangeClientDetailDTO dto, String clientId) {
+
+    public ClientDTO updatePhone(ClientPhoneDTO dto, String clientId) {
+        ClientEntity entity = getById(clientId);
+        entity.setPhone(dto.getPhone());
+        entity.setUpdatedDate(LocalDateTime.now());
+
+        clientRepository.save(entity);
+        return toDTO(entity);
+    }
+
+    public ClientDTO updateStatus(ClientStatusDTO dto, String clientId) {
         ClientEntity entity = getById(clientId);
 
         if (dto.getStatus().equals(entity.getStatus())) {
@@ -70,57 +71,71 @@ public class ClientService {
         clientRepository.save(entity);
         return toDTO(entity);
     }
-    public String updatePhone(ChangeClientPhoneDTO dto) {
-        ClientEntity entity = clientRepository.findById(dto.getClientId()).orElseThrow(
-                () -> new ItemNotFoundException("client not found"));
-        entity.setPhone(dto.getNewPhone());
-        entity.setLastModifiedDate(LocalDateTime.now());
 
-        clientRepository.save(entity);
+    public PageImpl<ClientDTO> paginationList(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
 
-        return "client phone number updated successfully!";
+        Page<ClientEntity> entityPage = clientRepository.findAll(pageable);
+
+        List<ClientDTO> dtoList = new ArrayList<>();
+
+        entityPage.forEach(entity -> {
+            dtoList.add(toDTO(entity));
+        });
+
+        return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
-    public List<ClientDTO> paginationList(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+    public ClientDTO get(String clientId, String profileName) {
+        ClientEntity entity;
+        if (profileName.equals("profile")) {
+            entity = clientRepository
+                    .findByIdAndProfileName(clientId, profileName)
+                    .orElseThrow(() -> {
+                        log.warn("Not found");
+                        return new ItemNotFoundException("Not found!");
+                    });
 
-        var list = clientRepository.findAll(pageable).stream().map(this::toDTO).toList();
-        if (list.isEmpty()) throw new ItemNotFoundException("group time table list is empty!");
-
-        return list;
-    }
-
-    public ClientDTO getById(String uuid, String profileName) {
-        var entity = clientRepository.findById(uuid)
-                .orElseThrow(() -> new ItemNotFoundException("client not found"));
-
-        if (!profileName.equals("admin") ||
-                !clientRepository.findByProfileName(profileName)
-                        .orElseThrow().getProfileName().equals(profileName))
-            throw new AppBadRequestException("not authorized!");
+            return toDTO(entity);
+        }
+        entity = getById(clientId);
 
         return toDTO(entity);
+    }
+
+    public PageImpl<ClientDTO> paginationListByProfileName(int page, int size, String profileName) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<ClientEntity> entityPage = clientRepository.findAllByProfileName(pageable, profileName);
+
+        List<ClientDTO> dtoList = new ArrayList<>();
+
+        entityPage.forEach(entity -> {
+            dtoList.add(toDTO(entity));
+        });
+
+        return new PageImpl<>(dtoList, pageable, entityPage.getTotalElements());
     }
 
     public ClientEntity getById(String clientId) {
         return clientRepository
                 .findById(clientId)
-                .orElseThrow(() -> new ItemNotFoundException("Not found!"));
+                .orElseThrow(() -> {
+                    log.warn("Not found {}", clientId);
+                    return new ItemNotFoundException("Not found!");
+                });
     }
 
     public ClientDTO toDTO(ClientEntity entity) {
-        var dto = new ClientDTO();
-
-        dto.setUuid(entity.getId());
+        ClientDTO dto = new ClientDTO();
+        dto.setId(entity.getId());
         dto.setName(entity.getName());
         dto.setSurname(entity.getSurname());
         dto.setPhone(entity.getPhone());
         dto.setStatus(entity.getStatus());
         dto.setProfileName(entity.getProfileName());
-        dto.setLastModifiedDate(entity.getLastModifiedDate());
         dto.setCreatedDate(entity.getCreatedDate());
-
+        dto.setUpdatedDate(entity.getUpdatedDate());
         return dto;
     }
-
 }
