@@ -1,6 +1,7 @@
 package com.company.dto;
 
-import com.company.enums.GeneralStatus;
+
+import com.company.enums.EntityStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,9 +14,12 @@ import javax.validation.constraints.NotNull;
 @Setter
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class ChangeCardStatusDTO {
-    @NotBlank(message = "uuid required")
-    private String uuid;
-    @NotNull(message = "status required")
-    private GeneralStatus status;
+public class CardStatusDTO {
+
+    @NotBlank(message = "CardNumber required")
+    private String cardNumber;
+
+    @NotNull(message = "Status not be null")
+    private EntityStatus status;
+
 }

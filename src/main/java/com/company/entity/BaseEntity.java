@@ -17,15 +17,15 @@ import java.time.LocalDateTime;
 public class BaseEntity {
 
     @Id
-    @GeneratedValue(generator="system-uuid")
-    @GenericGenerator(name="system-uuid", strategy = "uuid")
+    @GeneratedValue(generator = "system-uuid")
+    @GenericGenerator(name = "system-uuid", strategy = "uuid")
     protected String id;
 
-    @Column(name = "created_date")
+    @Column()
     @CreationTimestamp
     protected LocalDateTime createdDate;
 
-    @Column(name = "updated_date")
+    @Column()
     protected LocalDateTime updatedDate;
 
 }
